@@ -144,6 +144,17 @@ bool LilyGoLib::begin(Stream *stream)
     }
 
     log_println("Init BMA423");
+#if SENSORLIB_VERSION_MINOR > 2
+    res = SensorBMA423::begin(Wire);
+    if (!res) {
+        log_println("Failed to find BMA423 - check your wiring!");
+    } else {
+        log_println("Initializing BMA423 succeeded");
+        SensorBMA423::setRemapAxes(REMAP_BOTTOM_LAYER_TOP_RIGHT_CORNER);
+        setStepCounterWatermark(1);
+        devices_probe |= WATCH_BMA_ONLINE;
+    }
+#else
     res = SensorBMA423::init(Wire);
     if (!res) {
         log_println("Failed to find BMA423 - check your wiring!");
@@ -153,8 +164,20 @@ bool LilyGoLib::begin(Stream *stream)
         setStepCounterWatermark(1);
         devices_probe |= WATCH_BMA_ONLINE;
     }
+#endif
 
     log_println("Init PCF8563 RTC");
+#if SENSORLIB_VERSION_MINOR > 2
+    res = SensorPCF8563::begin(Wire);
+    if (!res) {
+        log_println("Failed to find PCF8563 - check your wiring!");
+    } else {
+        log_println("Initializing PCF8563 succeeded");
+        SensorPCF8563::setClockOutput(SensorPCF8563::CLK_DISABLE);   //Disable clock output ， Conserve Backup Battery Current Consumption
+        hwClockRead();  //Synchronize RTC clock to system clock
+        devices_probe |= WATCH_RTC_ONLINE;
+    }
+#else
     res = SensorPCF8563::init(Wire);
     if (!res) {
         log_println("Failed to find PCF8563 - check your wiring!");
@@ -164,15 +187,24 @@ bool LilyGoLib::begin(Stream *stream)
         hwClockRead();  //Synchronize RTC clock to system clock
         devices_probe |= WATCH_RTC_ONLINE;
     }
+#endif
 
     log_println("Init DRV2605");
+#if SENSORLIB_VERSION_MINOR > 2
+    res = SensorDRV2605::begin(Wire);
+#else
     res = SensorDRV2605::init(Wire);
+#endif
     if (!res) {
         log_println("Failed to find DRV2605 - check your wiring!");
     } else {
         log_println("Initializing DRV2605 succeeded");
         SensorDRV2605::selectLibrary(1);
+#if SENSORLIB_VERSION_MINOR > 2
+        SensorDRV2605::setMode(SensorDRV2605::MODE_INTTRIG);
+#else
         SensorDRV2605::setMode(DRV2605_MODE_INTTRIG);
+#endif
         SensorDRV2605::useERM();
         SensorDRV2605::setWaveform(0, 15);  // play effect
         SensorDRV2605::setWaveform(1, 0);  // end waveform

@@ -218,15 +218,7 @@ private:
 
 extern LilyGoLib watch;
 
-
-
-
-
-
-
-
-
-
-
-
+#if SENSORLIB_VERSION_MINOR > 2
+#define configreFeatureInterrupt configFeatureInterrupt
+#endif
 
