@@ -144,8 +144,17 @@ static lv_style_t button_default_style;
 static lv_style_t button_press_style;
 // Save the ID of the current page
 static uint8_t pageId = 0;
-// Flag used to indicate whether to use light sleep, currently unavailable
-static bool lightSleep = false;
+/*
+* USB cannot be used in light sleep mode. 
+* If you need to re-upload sketch, please keep the watch not in sleep mode, 
+* otherwise the sketch cannot be uploaded.
+* You can put the watch into download mode, and the 
+* watch will wait for the sketch to be uploaded in download mode. 
+* If you put it into upload mode, please refer to: 
+* https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/tree/t-watch-s3/firmware#note
+*/
+// Light sleep: about 5mA
+static bool lightSleep = true;
 // Flag used for acceleration interrupt status
 static bool sportsIrq = false;
 // Flag used to indicate whether recording is enabled
@@ -423,7 +432,7 @@ const char *radio_power_level_list =
 
 const float radio_power_args_list[] = {
     -30, -20, -15, -10, 0, 5, 7, 10
-    };
+};
 
 
 #endif
@@ -713,6 +722,25 @@ void SensorHandler()
     }
 }
 
+// Only valid for T-Watch-Plus
+void turnOffGps()
+{
+    // watch.disableDC3();  // GPS , Earlier versions use DC3 (without BOOT button and RST)
+    watch.disableBLDO1();   // GPS , (The version with BOOT button and RST on the back cover)
+    GPSSerial.end();
+    gpio_reset_pin((gpio_num_t )SHIELD_GPS_RX);
+    pinMode(SHIELD_GPS_RX, OPEN_DRAIN);
+    gpio_reset_pin((gpio_num_t )SHIELD_GPS_TX);
+    pinMode(SHIELD_GPS_TX, OPEN_DRAIN);
+}
+
+// Only valid for T-Watch-Plus
+void turnOnGps()
+{
+    // watch.enableDC3(); // GPS , Earlier versions use DC3 (without BOOT button and RST)
+    watch.enableBLDO1(); // GPS , (The version with BOOT button and RST on the back cover)
+    GPSSerial.begin(38400, SERIAL_8N1, SHIELD_GPS_RX, SHIELD_GPS_TX);
+}
 
 void lowPowerEnergyHandler()
 {
@@ -726,23 +754,36 @@ void lowPowerEnergyHandler()
         SensorBMA423::INT_STEP_CNTR |   // Pedometer interrupt
         SensorBMA423::INT_ACTIVITY |    // Activity interruption
         SensorBMA423::INT_TILT |        // Tilt interrupt
-        // SensorBMA423::INT_WAKEUP |      // DoubleTap interrupt
+        SensorBMA423::INT_WAKEUP |      // DoubleTap interrupt
         SensorBMA423::INT_ANY_NO_MOTION,// Any  motion / no motion interrupt
         false);
 
     sportsIrq = false;
     pmuIrq = false;
     lv_timer_pause(transmitTask);
-    //TODO: Low power consumption not debugged
-    if (lightSleep) {
-        esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-        // esp_sleep_enable_ext1_wakeup(1ULL << BOARD_BMA423_INT1, ESP_EXT1_WAKEUP_ANY_HIGH);
-        // esp_sleep_enable_ext1_wakeup(1ULL << BOARD_PMU_INT, ESP_EXT1_WAKEUP_ALL_LOW);
+    
+    turnOffGps();
 
-        gpio_wakeup_enable ((gpio_num_t)BOARD_PMU_INT, GPIO_INTR_LOW_LEVEL);
-        gpio_wakeup_enable ((gpio_num_t)BOARD_BMA423_INT1, GPIO_INTR_HIGH_LEVEL);
-        esp_sleep_enable_gpio_wakeup ();
+    radio.sleep();
+
+    // Enter display sleepmode
+    watch.writecommand(0x10);
+
+    if (lightSleep) {
+        /*
+        * USB cannot be used in light sleep mode. 
+        * If you need to re-upload sketch, please keep the watch not in sleep mode, 
+        * otherwise the sketch cannot be uploaded.
+        * You can put the watch into download mode, and the 
+        * watch will wait for the sketch to be uploaded in download mode. 
+        * If you put it into upload mode, please refer to: 
+        * https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/tree/t-watch-s3/firmware#note
+        */
+        // Light sleep: about 5mA
+        uint64_t wakeup_pin = _BV(BOARD_TOUCH_INT) | _BV(BOARD_PMU_INT);
+        esp_sleep_enable_ext1_wakeup((wakeup_pin), ESP_EXT1_WAKEUP_ALL_LOW);
         esp_light_sleep_start();
+
     } else {
 
         // Too low a frequency may cause a restart
@@ -750,17 +791,19 @@ void lowPowerEnergyHandler()
         setCpuFrequencyMhz(80);
         while (!pmuIrq && !sportsIrq && !watch.getTouched()) {
             delay(300);
-            // gpio_wakeup_enable ((gpio_num_t)BOARD_TOUCH_INT, GPIO_INTR_LOW_LEVEL);
-            // esp_sleep_enable_timer_wakeup(3 * 1000);
-            // esp_light_sleep_start();
         }
 
         setCpuFrequencyMhz(240);
     }
 
+    turnOnGps();
+
+    // Wakeup display
+    watch.writecommand(0x11);
+
     // Clear Interrupts in Loop
     // watch.readBMA();
-    // watch.clearPMU();
+    watch.clearPMU();
 
     watch.configreFeatureInterrupt(
         SensorBMA423::INT_STEP_CNTR |   // Pedometer interrupt
@@ -1787,8 +1830,8 @@ void radioPingPong(lv_obj_t *parent)
 
     dd = lv_dropdown_create(cont1);
     lv_dropdown_set_options(dd, "TX\n"
-                            "RX\n"
-                            "Disable"
+                                "RX\n"
+                                "Disable"
                            );
     lv_dropdown_set_selected(dd, 2);
     lv_obj_add_flag(dd, LV_OBJ_FLAG_EVENT_BUBBLE);
@@ -1830,11 +1873,11 @@ void radioPingPong(lv_obj_t *parent)
 
     dd = lv_dropdown_create(cont1);
     lv_dropdown_set_options(dd, "100ms\n"
-                            "200ms\n"
-                            "500ms\n"
-                            "1000ms\n"
-                            "2000ms\n"
-                            "3000ms"
+                                "200ms\n"
+                                "500ms\n"
+                                "1000ms\n"
+                                "2000ms\n"
+                                "3000ms"
                            );
     lv_dropdown_set_selected(dd, 1);
     lv_obj_add_flag(dd, LV_OBJ_FLAG_EVENT_BUBBLE);
