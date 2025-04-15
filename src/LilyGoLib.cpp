@@ -413,16 +413,19 @@ bool LilyGoLib::beginPower()
     //!DRV2605 enable
     setBLDO2Voltage(3300);
 
+    
     //! GPS Power
+    setBLDO1Voltage(3300);
+
     setDC3Voltage(3300);
-    enableDC3();
+    enableDC3();    //Earlier versions use DC3 (without BOOT button and RST)
 
     //! No use
     disableDC2();
     // disableDC3();
     disableDC4();
     disableDC5();
-    disableBLDO1();
+    // disableBLDO1();
     disableCPUSLDO();
     disableDLDO1();
     disableDLDO2();
@@ -434,6 +437,8 @@ bool LilyGoLib::beginPower()
     enableALDO3();  //! Screen touch VDD
     enableALDO4();  //! Radio VDD
     enableBLDO2();  //! drv2605 enable
+    enableBLDO1();  //! GPS enable  (The version with BOOT button and RST on the back cover)
+    enableDLDO1();  //! Speaker 
 
 
     if (stream) {
@@ -563,7 +568,12 @@ void LilyGoLib::powerIoctl(enum PowerCtrlChannel ch, bool enable)
     case WATCH_POWER_DRV2605:
         enable ? enableBLDO2() : disableBLDO2();
         break;
+    // GPS , (The version with BOOT button and RST on the back cover)
     case WATCH_POWER_GPS:
+        enable ? enableBLDO1() : disableBLDO1();
+        break;
+    // GPS , Earlier versions use DC3 (without BOOT button and RST)
+    case WATCH_POWER_GPS_DC_CHANNEL:
         enable ? enableDC3() : disableDC3();
         break;
     default:

@@ -132,7 +132,8 @@ enum PowerCtrlChannel {
     WATCH_POWER_TOUCH_DISP,
     WATCH_POWER_RADIO,
     WATCH_POWER_DRV2605,
-    WATCH_POWER_GPS
+    WATCH_POWER_GPS,    // (The version with BOOT button and RST on the back cover)
+    WATCH_POWER_GPS_DC_CHANNEL  //Earlier versions use DC3 (without BOOT button and RST)
 };
 
 class LilyGoLib :
