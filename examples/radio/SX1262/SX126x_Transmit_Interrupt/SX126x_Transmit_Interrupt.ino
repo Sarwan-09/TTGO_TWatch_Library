@@ -26,6 +26,74 @@ SX1262 radio = newModule();
 int transmissionState = RADIOLIB_ERR_NONE;
 lv_obj_t *label1;
 
+void setRadioParams()
+{
+    // set carrier frequency to 868.0 MHz
+    if (radio.setFrequency(868.0) == RADIOLIB_ERR_INVALID_FREQUENCY) {
+        Serial.println(F("Selected frequency is invalid for this module!"));
+        while (true);
+    }
+
+    // set bandwidth to 250 kHz
+    if (radio.setBandwidth(125.0) == RADIOLIB_ERR_INVALID_BANDWIDTH) {
+        Serial.println(F("Selected bandwidth is invalid for this module!"));
+        while (true);
+    }
+
+    // set spreading factor to 10
+    if (radio.setSpreadingFactor(10) == RADIOLIB_ERR_INVALID_SPREADING_FACTOR) {
+        Serial.println(F("Selected spreading factor is invalid for this module!"));
+        while (true);
+    }
+
+    // set coding rate to 6
+    if (radio.setCodingRate(6) == RADIOLIB_ERR_INVALID_CODING_RATE) {
+        Serial.println(F("Selected coding rate is invalid for this module!"));
+        while (true);
+    }
+
+    // set LoRa sync word to 0xAB
+    if (radio.setSyncWord(0xAB) != RADIOLIB_ERR_NONE) {
+        Serial.println(F("Unable to set sync word!"));
+        while (true);
+    }
+
+    // set output power to 10 dBm (accepted range is -17 - 22 dBm)
+    if (radio.setOutputPower(22) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
+        Serial.println(F("Selected output power is invalid for this module!"));
+        while (true);
+    }
+
+    // set over current protection limit to 140 mA (accepted range is 45 - 240 mA)
+    // NOTE: set value to 0 to disable overcurrent protection
+    if (radio.setCurrentLimit(140) == RADIOLIB_ERR_INVALID_CURRENT_LIMIT) {
+        Serial.println(F("Selected current limit is invalid for this module!"));
+        while (true);
+    }
+
+    // set LoRa preamble length to 15 symbols (accepted range is 0 - 65535)
+    if (radio.setPreambleLength(15) == RADIOLIB_ERR_INVALID_PREAMBLE_LENGTH) {
+        Serial.println(F("Selected preamble length is invalid for this module!"));
+        while (true);
+    }
+
+    // disable CRC
+    if (radio.setCRC(false) == RADIOLIB_ERR_INVALID_CRC_CONFIGURATION) {
+        Serial.println(F("Selected CRC is invalid for this module!"));
+        while (true);
+    }
+
+    if (radio.setTCXO(3.0) == RADIOLIB_ERR_INVALID_TCXO_VOLTAGE) {
+        Serial.println(F("Selected TCXO voltage is invalid for this module!"));
+        while (true);
+    }
+
+    if (radio.setDio2AsRfSwitch() != RADIOLIB_ERR_NONE) {
+        Serial.println(F("Failed to set DIO2 as RF switch!"));
+        while (true);
+    }
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -45,11 +113,8 @@ void setup()
         while (true);
     }
 
-    // set carrier frequency to 433.5 MHz
-    if (radio.setFrequency(433.5) == RADIOLIB_ERR_INVALID_FREQUENCY) {
-        Serial.println(F("Selected frequency is invalid for this module!"));
-        while (true);
-    }
+    // Setting radio params
+    setRadioParams();
 
     // set the function that will be called
     // when packet transmission is finished
