@@ -7,6 +7,10 @@
 **English | [中文](README_CN.MD)**
 
 ## News:
+
+## The latest version of T-Watch-S3 has been moved to [LilyGoLib](https://github.com/Xinyuan-LilyGO/LilyGoLib) This repository version only supports 2.0.9 esp32 core, please use [LilyGoLib](https://github.com/Xinyuan-LilyGO/LilyGoLib) for the latest version
+
+
 - Currently `T-Watch-Lib` is only compatible with `T-Watch S3` version, esp32 version is planned to support
 
 ## 1️⃣ PlatformIO Quick Start <Recommended>
