@@ -145,12 +145,12 @@ static lv_style_t button_press_style;
 // Save the ID of the current page
 static uint8_t pageId = 0;
 /*
-* USB cannot be used in light sleep mode. 
-* If you need to re-upload sketch, please keep the watch not in sleep mode, 
+* USB cannot be used in light sleep mode.
+* If you need to re-upload sketch, please keep the watch not in sleep mode,
 * otherwise the sketch cannot be uploaded.
-* You can put the watch into download mode, and the 
-* watch will wait for the sketch to be uploaded in download mode. 
-* If you put it into upload mode, please refer to: 
+* You can put the watch into download mode, and the
+* watch will wait for the sketch to be uploaded in download mode.
+* If you put it into upload mode, please refer to:
 * https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/tree/t-watch-s3/firmware#note
 */
 // Light sleep: about 5mA
@@ -250,6 +250,14 @@ void radioTask(lv_timer_t *parent);
 static void PDM_Record(const char *song_name, uint32_t duration);
 static bool CreateWAV(const char *song_name, uint32_t duration, uint16_t num_channels, const uint32_t sampling_rate, uint16_t bits_per_sample);
 
+typedef struct  {
+    float freq;
+    float bw;
+    float pw;
+} radio_params;
+
+static radio_params radio_setting;
+
 #if  defined(USE_RADIO_SX1262)
 const char *radio_freq_list =
     "433MHz\n"
@@ -257,8 +265,9 @@ const char *radio_freq_list =
     "850MHZ\n"
     "868MHz\n"
     "915MHz\n"
+    "920MHZ\n"
     "923MHz";
-const float radio_freq_args_list[] = {433.0, 470.0, 850.0, 868.0, 915.0, 923.0};
+const float radio_freq_args_list[] = {433.0, 470.0, 850.0, 868.0, 915.0, 920.0, 923.0};
 
 const char *radio_bandwidth_list =
     "125KHz\n"
@@ -761,22 +770,25 @@ void lowPowerEnergyHandler()
     sportsIrq = false;
     pmuIrq = false;
     lv_timer_pause(transmitTask);
-    
+
     turnOffGps();
 
+#ifndef USE_RADIO_SX1280
+    // SX1280 died here, the reason is not analyzed yet, waiting to be processed
     radio.sleep();
+#endif
 
     // Enter display sleepmode
     watch.writecommand(0x10);
 
     if (lightSleep) {
         /*
-        * USB cannot be used in light sleep mode. 
-        * If you need to re-upload sketch, please keep the watch not in sleep mode, 
+        * USB cannot be used in light sleep mode.
+        * If you need to re-upload sketch, please keep the watch not in sleep mode,
         * otherwise the sketch cannot be uploaded.
-        * You can put the watch into download mode, and the 
-        * watch will wait for the sketch to be uploaded in download mode. 
-        * If you put it into upload mode, please refer to: 
+        * You can put the watch into download mode, and the
+        * watch will wait for the sketch to be uploaded in download mode.
+        * If you put it into upload mode, please refer to:
         * https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/tree/t-watch-s3/firmware#note
         */
         // Light sleep: about 5mA
@@ -994,13 +1006,16 @@ void radioTask(lv_timer_t *parent)
             // print the result
             if (transmissionState == RADIOLIB_ERR_NONE) {
                 // packet was successfully sent
+
+                Serial.printf("FREQ:%.2f BW:%.2f PW:%.2f\n", radio_setting.freq, radio_setting.bw, radio_setting.pw);
+
                 Serial.println(F("transmission finished!"));
             } else {
                 Serial.print(F("failed, code "));
                 Serial.println(transmissionState);
             }
 
-            lv_snprintf(buf, 256, "[%u]:Tx %s", lv_tick_get() / 1000, transmissionState == RADIOLIB_ERR_NONE ? "Successed" : "Failed");
+            lv_snprintf(buf, 256, "%.2fMHZ [%u]:Tx %s", radio_setting.freq, lv_tick_get() / 1000, transmissionState == RADIOLIB_ERR_NONE ? "Successed" : "Failed");
             lv_textarea_set_text(radio_ta, buf);
 
             transmissionState = radio.startTransmit("Hello World!");
@@ -1015,6 +1030,8 @@ void radioTask(lv_timer_t *parent)
             if (state == RADIOLIB_ERR_NONE) {
                 // packet was successfully received
                 Serial.println(F("[Radio] Received packet!"));
+
+                Serial.printf("FREQ:%.2f BW:%.2f PW:%.2f\n", radio_setting.freq, radio_setting.bw, radio_setting.pw);
 
                 // print data of the packet
                 Serial.print(F("[Radio] Data:\t\t"));
@@ -1031,7 +1048,7 @@ void radioTask(lv_timer_t *parent)
                 Serial.println(F(" dB"));
 
 
-                lv_snprintf(buf, 256, "[%u]:Rx %s \nRSSI:%.2f", lv_tick_get() / 1000, str.c_str(), radio.getRSSI());
+                lv_snprintf(buf, 256, "%.2fMHZ [%u]:Rx %s \nRSSI:%.2f", radio_setting.freq, lv_tick_get() / 1000, str.c_str(), radio.getRSSI());
                 lv_textarea_set_text(radio_ta, buf);
             }
 
@@ -1663,6 +1680,9 @@ static void radio_bandwidth_cb(lv_event_t *e)
     }
 #endif
 
+    radio_setting.bw = radio_bandwidth_args_list[id];
+
+
     if (transmitFlag) {
         radio.startTransmit("");
     } else {
@@ -1697,6 +1717,7 @@ static void radio_freq_cb(lv_event_t *e)
         Serial.println(F("Selected frequency is invalid for this module!"));
     }
 
+    radio_setting.freq = radio_freq_args_list[id];
 
     if (transmitFlag) {
         radio.startTransmit("");
@@ -1735,6 +1756,8 @@ static void radio_power_cb(lv_event_t *e)
     if (radio.setOutputPower(radio_power_args_list[id]) == RADIOLIB_ERR_INVALID_OUTPUT_POWER) {
         Serial.println(F("Selected output power is invalid for this module!"));
     }
+
+    radio_setting.pw = radio_power_args_list[id];
 
     if (transmitFlag) {
         radio.startTransmit("");
@@ -1849,6 +1872,7 @@ void radioPingPong(lv_obj_t *parent)
     lv_obj_add_event_cb(dd, radio_freq_cb,
                         LV_EVENT_VALUE_CHANGED
                         , NULL);
+    radio_setting.freq = radio_freq_args_list[RADIO_FREQ_DROP_INDEX];
 
 
     dd = lv_dropdown_create(cont1);
@@ -1859,6 +1883,7 @@ void radioPingPong(lv_obj_t *parent)
     lv_obj_add_event_cb(dd, radio_bandwidth_cb,
                         LV_EVENT_VALUE_CHANGED
                         , NULL);
+    radio_setting.bw = radio_bandwidth_args_list[RADIO_BW_DROP_INDEX];
 
 
     dd = lv_dropdown_create(cont1);
@@ -1869,6 +1894,8 @@ void radioPingPong(lv_obj_t *parent)
     lv_obj_add_event_cb(dd, radio_power_cb,
                         LV_EVENT_VALUE_CHANGED
                         , NULL);
+
+    radio_setting.pw = radio_power_args_list[RADIO_TX_POWER_DROP_INDEX];
 
 
     dd = lv_dropdown_create(cont1);
