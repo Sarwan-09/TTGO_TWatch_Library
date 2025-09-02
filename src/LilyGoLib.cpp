@@ -679,7 +679,7 @@ bool LilyGoLib::gpsProbe()
 
     uint16_t len = getAck(buffer, 256, 0x0A, 0x04);
     if (len) {
-        memset(&info, 0, sizeof(info));
+        info = uBloxGnssModelInfo{};
         uint16_t position = 0;
         for (int i = 0; i < 30; i++) {
             info.softVersion[i] = buffer[position];
