@@ -110,7 +110,7 @@ Please follow the steps below
    1. Lilygo T-Watch fits 502530 size (5x25x30mm) batteries of any chemistry supported by the AXP2101.
 7. **esp_vad.h: No such file or directory**
    * **Please use 2.0.9. The new version has changed too much and has not yet been adapted.**
-
+8. Charging current setting, the default library sets the charging current to 125mA. Please do not keep the charging current setting at 125mA. Do not set it higher than 125mA, otherwise it will easily damage the battery.
 
 ## 3️⃣Use reference
 
