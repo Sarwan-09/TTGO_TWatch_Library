@@ -27,6 +27,7 @@
 
 SX1262 radio = newModule();
 
+lv_obj_t *label1;
 
 void setRadioParams()
 {
@@ -143,6 +144,13 @@ void setup()
     // radio.receive();
     // radio.readData();
     // radio.scanChannel();
+
+    beginLvglHelper();
+
+    label1 = lv_label_create(lv_scr_act());
+    lv_label_set_recolor(label1, true);    /*Enable re-coloring by commands in the text*/
+    lv_label_set_text(label1, "Waiting for incoming transmission");
+    lv_obj_center(label1);
 }
 
 // flag to indicate that a packet was received
@@ -197,6 +205,8 @@ void loop()
             Serial.print(F("[SX1262] Frequency error:\t"));
             Serial.print(radio.getFrequencyError());
             Serial.println(F(" Hz"));
+
+            lv_label_set_text_fmt(label1, "Recv :%s\nRSSI:%.2fdBm\nSNR:%.2f", str.c_str(), radio.getRSSI(), radio.getSNR());
 
         } else if (state == RADIOLIB_ERR_CRC_MISMATCH) {
             // packet was received, but is malformed
